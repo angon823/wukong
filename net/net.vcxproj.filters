@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="net.cpp" />
+    <ClCompile Include="listener.cpp" />
+    <ClCompile Include="acceptor.cpp" />
+    <ClCompile Include="connection.cpp" />
+    <ClCompile Include="thread_pool.cpp" />
+    <ClCompile Include="thread.cpp" />
+    <ClCompile Include="socket.cpp" />
+    <ClCompile Include="tcp_server.cpp">
+      <Filter>server</Filter>
+    </ClCompile>
+    <ClCompile Include="event.cpp" />
+    <ClCompile Include="epoll.cpp">
+      <Filter>poller</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="asio_server.h" />
+    <ClInclude Include="listener.h" />
+    <ClInclude Include="acceptor.h" />
+    <ClInclude Include="connection.h" />
+    <ClInclude Include="thread_pool.h" />
+    <ClInclude Include="thread.h" />
+    <ClInclude Include="poller.h" />
+    <ClInclude Include="socket.h" />
+    <ClInclude Include="tcp_server.h">
+      <Filter>server</Filter>
+    </ClInclude>
+    <ClInclude Include="event.h" />
+    <ClInclude Include="epoll.h">
+      <Filter>poller</Filter>
+    </ClInclude>
+    <ClInclude Include="ip_address.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="server">
+      <UniqueIdentifier>{f5b015e0-2533-43a9-912f-b00156b079c9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="poller">
+      <UniqueIdentifier>{2c061f35-78a2-466d-bf2d-aa9790147c15}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
