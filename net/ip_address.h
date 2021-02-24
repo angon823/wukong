@@ -2,31 +2,34 @@
 #define __Ip_Address_H__
 
 #include <string>
-#include <inttypes.h>
+#include <cinttypes>
+#include <cstdio>
 
-#ifndef _WIN32
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#else
+#ifdef _WIN32
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
 #include <mswsock.h>
-#endif
+#elif __linux__
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+#endif // _WIN32
 
 namespace wukong{
 namespace net {
 
-
 class IpAddress
 {
 public:
-	IpAddress() {}
-	IpAddress(uint16_t port)
+	IpAddress() = default;
+
+	explicit IpAddress(uint16_t port)
 	{
 		addr_.sin_family = AF_INET;
-		addr_.sin_addr.s_addr = INADDR_LOOPBACK;
+		addr_.sin_addr.s_addr = INADDR_ANY;
 		addr_.sin_port = htons(port);
 	}
 
@@ -38,15 +41,17 @@ public:
 	}
 
 	int16_t Family() const 	{ return addr_.sin_family; }
-	uint16_t Port() const { return addr_.sin_port; }
+	uint16_t Port() const { return ntohs(addr_.sin_port); }
 	std::string Ip() const { return inet_ntoa(addr_.sin_addr); }
-	sockaddr* SockAddr() const { return (sockaddr*)&addr_;	}
+	const sockaddr* SockAddr() const { return (sockaddr*)&addr_;	}
+
+	std::string ToString() const {return Ip().append(":").append(std::to_string(Port()));}
 
 private:
-	struct sockaddr_in addr_;
+	struct sockaddr_in addr_{};
 };
 
 }
 }
 
-#endif
+#endif //__Ip_Address_H__

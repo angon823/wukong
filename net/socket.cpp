@@ -2,6 +2,9 @@
 
 #ifdef _WIN32
 #pragma comment(lib,"ws2_32.lib")
+#else
+#include <netinet/tcp.h>
+#include <fcntl.h>
 #endif
 
 using namespace wukong::net;
@@ -11,16 +14,15 @@ Socket::Socket(int32_t fd)
 {
 }
 
-
 int32_t Socket::SetTcpNoDelay()
 {
 #if defined(SO_REUSEADDR) && !defined(_WIN32)
-	int optval = 1
+	int optval = 1;
 	::setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY,
 		(void*)&optval, static_cast<socklen_t>(sizeof optval));
 #else
-	return 0;
 #endif
+	return 0;
 }
 
 int32_t Socket::SetNoBlock()
@@ -44,7 +46,7 @@ int32_t Socket::SetNoBlock()
 	return 0;
 }
 
-int32_t wukong::net::Socket::SetKeepAlive()
+int32_t Socket::SetKeepAlive()
 {
 #if defined(SO_KEEPALIVE) && !defined(_WIN32)
 	int optval = 1;
@@ -82,7 +84,51 @@ int32_t Socket::SetReusePort()
 #endif
 }
 
-Socket wukong::net::CreateSocket(int32_t fd, int32_t falgs)
+int32_t Socket::MakeFdFine(int32_t flags)
+{
+    auto ret = SetNoBlock();
+    if (ret < 0)
+    {
+        return ret;
+    }
+    ret = SetTcpNoDelay();
+    if (ret < 0)
+    {
+        return ret;
+    }
+    ret = SetKeepAlive();
+    if (ret < 0)
+    {
+        return ret;
+    }
+    ret = SetReuseAddr();
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    if (flags & 1)
+    {
+        ret = SetReusePort();
+        if (ret < 0)
+        {
+            return ret;
+        }
+    }
+    return 0;
+}
+
+void Socket::Close()
+{
+#ifdef _WIN32
+    closesocket(fd_);
+#else
+    close(fd_);
+#endif
+    fd_ = -1;
+}
+
+Socket wukong::net::CreateSocket(int32_t fd, int32_t flags)
 {
 	Socket sock(fd);
 	if (fd < 0)
@@ -90,46 +136,30 @@ Socket wukong::net::CreateSocket(int32_t fd, int32_t falgs)
 		return sock;
 	}
 
-	// todo
-	if (falgs & 1)
-	{
-	}
+    if (sock.MakeFdFine(flags) != 0)
+    {
+        return Socket(-1);
+    }
 
-	auto ret = sock.SetNoBlock();
-	if (ret < 0)
-	{
-	}
-	ret = sock.SetTcpNoDelay();
-	if (ret < 0)
-	{
-	}
-	ret = sock.SetKeepAlive();
-	if (ret < 0)
-	{
-	}
-	ret = sock.SetReuseAddr();
-	if (ret < 0)
-	{
-	}
-	ret = sock.SetReusePort();
-	if (ret < 0)
-	{
-	}
 	return sock;
 }
 
-Socket wukong::net::CreateSocket(int16_t family, int32_t falgs)
+Socket wukong::net::CreateSocket(int32_t flags)
 {
 #ifdef _WIN32
 	WSADATA wsa_data;
 	WSAStartup(0x0201, &wsa_data);
 #endif
-	int32_t fd = ::socket(family, SOCK_STREAM, 0);
-	Socket sock(fd);
-	if (fd < 0)
-	{
-		return sock;
-	}
+	int32_t fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+    {
+        return Socket(-1);
+    }
 
-	return wukong::net::CreateSocket(fd, falgs);
+	Socket sock(fd);
+    if (sock.MakeFdFine(flags) != 0)
+    {
+        return Socket(-1);
+    }
+    return sock;
 }

@@ -1,51 +1,106 @@
 #include "listener.h"
+#include "poller/poll_event.h"
+#include <utility>
+#include <cstdio>
+#include "poller/epoll.h"
+#include "define.h"
+#include "i_net_server.h"
+#include "poller/poller_factory.h"
 
 using namespace wukong::net;
 
-Listener::Listener(NewConnectionCallBack cb)
-	: newConnectionCallBack_(cb)
+Listener::Listener(INetServer* handle)
+    : i_net_server_(handle)
 {
+
 }
+
 
 int32_t Listener::Listen(const IpAddress & addr)
 {
-	Socket sock = CreateSocket(addr.Family());
-	if (!sock.IsValid())
+    sock_ = CreateSocket(0);
+	if (!sock_.IsValid())
 	{
 		return -1;
 	}
 
-	acceptor_.SetSocket(sock);
-	int32_t ret = acceptor_.Bind(addr);
-	if (ret < 0)
-	{
-	}
+    int32_t ret = ::bind(sock_.GetFd(), addr.SockAddr(), static_cast<socklen_t>(sizeof(struct sockaddr_in)));
+    if (ret < 0)
+    {
+        perror("");
+    }
 
+    ret = ::listen(sock_.GetFd(), SOMAXCONN);
+    if (ret < 0)
+    {
+        perror("");
+        return ret;
+    }
 
-	ret = acceptor_.Listen();
-	if (ret < 0)
-	{
-		
-	}
+    poller_ = std::unique_ptr<Poller>(CreatePoller(i_net_server_->GetType()));
+    if (poller_ == nullptr)
+    {
+        return -1;
+    }
+    ret = poller_->Init();
+    if (ret != 0)
+    {
+        return ret;
+    }
 
-	return ret;
+    ret = poller_->CtlFd(sock_.GetFd(), kPollAdd, kDefaultPollEvent);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    return ret;
 }
 
-int32_t Listener::handleReadEvent(int32_t event)
+
+Socket Listener::Accept(IpAddress *addr)
 {
-	// read
-	if (event & 1)
-	{
-		IpAddress client_addr;
-		auto sock = acceptor_.Accept(&client_addr);
-		if (!sock.IsValid())
-		{
-			return -1;
-		}
+    auto addrLen = static_cast<socklen_t>(sizeof *addr);
+    int32_t connFd = ::accept(sock_.GetFd(), (sockaddr*)addr->SockAddr(), &addrLen);
+    if (connFd < 0)
+    {
+        if (errno != EAGAIN)
+            perror("accept error!");
+        return Socket(-1);
+    }
 
-		if (newConnectionCallBack_) {
-			newConnectionCallBack_(sock);
-		}
-	}
+    Socket sock(connFd);
+    sock.SetNoBlock();
+    sock.SetTcpNoDelay();
+    sock.SetKeepAlive();
+
+    return sock;
 }
+
+int32_t Listener::Poll(int32_t timeout)
+{
+    activeEvents_.clear();
+    int32_t num = poller_->Poll(timeout, activeEvents_);
+    if (num <= 0)
+    {
+        return num;
+    }
+
+    for (const auto &event : activeEvents_)
+    {
+        uint32_t events = event.Events();
+        int32_t sockFd = event.Fd();
+
+        if (events & (EPOLLERR | EPOLLHUP))
+        {
+            i_net_server_->HandleListenErr(sockFd);
+        }
+        else if (events & (EPOLLIN | EPOLLPRI))
+        {
+            i_net_server_->HandleListenRead(sockFd);
+        }
+    }
+    return num;
+}
+
 

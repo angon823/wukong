@@ -1,27 +1,33 @@
 #ifndef __H_Listener_H__
 #define __H_Listener_H__
 
-#include "acceptor.h"
-#include <functional>
-
+#include "socket.h"
+#include <memory>
+#include <vector>
+#include "poller/poll_event.h"
 
 namespace wukong {
 namespace net {
 
-using NewConnectionCallBack = std::function<void(Socket)>;
+class Poller;
+class INetServer;
 
 class Listener
 {
 public:
-	Listener(NewConnectionCallBack cb);
-
+    explicit  Listener(INetServer*);
 	int32_t Listen(const IpAddress & addr);
+	int32_t Poll(int32_t timeout);
+    Socket Accept(IpAddress *addr);
 
-	int32_t handleReadEvent(int32_t event);
+    void    Close()  { sock_.Close(); }
+    int32_t GetFd() const { return sock_.GetFd(); }
 
 private:
-	NewConnectionCallBack newConnectionCallBack_;
-	Acceptor acceptor_;
+    Socket sock_{};
+    std::unique_ptr<Poller> poller_{nullptr};
+    std::vector<PollEvent> activeEvents_;
+    INetServer* i_net_server_;
 };
 
 }
