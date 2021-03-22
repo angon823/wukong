@@ -3,12 +3,9 @@ project(net)
 
 set(CMAKE_CXX_STANDARD 14)
 
-message(STATUS "Net Watch Src path: ${WUKONG_SOURCE_DIR}/third")
-
-
+include_directories(${WUKONG_SOURCE_DIR}/share)
 include_directories(${WUKONG_SOURCE_DIR}/third)
 include_directories(${WUKONG_SOURCE_DIR}/net)
-include_directories(${WUKONG_SOURCE_DIR}/util)
 
 
 set(net_HEAD
@@ -21,7 +18,12 @@ set(net_HEAD
         buffer.h
 )
 
-FILE(GLOB_RECURSE net_SRC *.cpp)
+file(GLOB_RECURSE net_SRC *.cpp)
+
+list(APPEND net_SRC
+        ${WUKONG_SOURCE_DIR}/share/timer/time_manager.cpp
+        ${WUKONG_SOURCE_DIR}/share/timer/time_manager.h
+    )
 
 
-add_executable(net ${net_SRC})
+add_executable(net ${net_SRC} ../share/util/time.h ../share/util/noncopyable.h)

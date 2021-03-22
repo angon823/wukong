@@ -6,9 +6,6 @@
 namespace wukong{
 namespace net{
 
-Epoll::Epoll()
-{
-}
 
 Epoll::~Epoll()
 {
@@ -18,6 +15,11 @@ Epoll::~Epoll()
 int32_t Epoll::Init()
 {
     return epoll_init();
+}
+
+void Epoll::Uninit()
+{
+    epoll_destroy();
 }
 
 int32_t Epoll::CtlFd(int32_t fd, int32_t op, uint32_t events)
@@ -118,7 +120,6 @@ int32_t Epoll::epoll_mod(int32_t fd, uint32_t events)
     event_.events = events;
     return epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event_);
 }
-
 
 }
 }

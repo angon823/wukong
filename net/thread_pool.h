@@ -9,14 +9,14 @@ namespace wukong
 {
 namespace net
 {
-class INetServer;
+class AsioNetServer;
 class ThreadLoop;
 class ThreadPool
 {
 public:
     using ThreadLoopList = std::vector<ThreadLoopSPtr>;
 
-    int32_t Create(INetServer* i_server, int32_t thread_num, int32_t timeout);
+    int32_t Create(AsioNetServer* i_server, int32_t thread_num);
     int32_t Stop();
     const ThreadLoopSPtr& GetLoop(size_t index);
     const ThreadLoopSPtr& GetNextLoop();

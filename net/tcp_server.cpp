@@ -2,7 +2,7 @@
 #include <cassert>
 #include "tcp_server.h"
 #include "connection.h"
-#include "../base/log.h"
+#include "log/log.h"
 #include "thread_pool.h"
 #include "thread_loop.h"
 #include "logic_server_interface.h"
@@ -11,52 +11,51 @@ using namespace wukong::net;
 
 
 TcpServer::TcpServer(wukong::ILogicServer *logic_server)
-    : INetServer(logic_server)
+    : AsioNetServer(logic_server)
 {
     assert(server_);
 }
 
-int32_t TcpServer::Init(const IpAddress &addr, int32_t thread_num)
+bool TcpServer::Init(const IpAddress &addr, int32_t thread_num)
 {
     assert(0 <= thread_num);
 
-    listener_ = std::unique_ptr<Listener>(new Listener(this));
-    int32_t ret = listener_->Listen(addr);
-    if (ret != 0)
+    listener_ = std::unique_ptr<Listener>(new Listener(std::bind(&TcpServer::handleListenEvent, this, std::placeholders::_1, std::placeholders::_2), NetServerType::TCP));
+    if (listener_->Listen(addr) != 0)
     {
-        return ret;
+        return false;
     }
 
+    // FIXME 线程池的创建时异步的， Loop调用实际应该在线程创建完成之后开始
     thread_pool_ = std::unique_ptr<ThreadPool>(new ThreadPool());
-    if (thread_pool_->Create(this, thread_num, poll_timeout_ms_) != 0)
+    if (thread_pool_->Create(this, thread_num) != 0)
     {
-        return -1;
+        return false;
     }
 
     registerMessage();
 
     LogInfo("tcpserver start!");
-    return ret;
+    return true;
 }
 
-int32_t TcpServer::Serve()
+void TcpServer::Loop()
 {
     while (!quit_)
     {
-        handleSignal();
+        poll();
         processMsg();
         handleTimer();
-        poll();
     }
-	return 0;
 }
 
-void TcpServer::Shutdown()
+void TcpServer::Exit()
 {
     quit_ = true;
 	listener_->Close();
     thread_pool_->Stop();
     connections_.clear();
+    LogInfo("tcpserver exit!");
 }
 
 bool TcpServer::CloseConnection(const ConnectionSPtr& con)
@@ -64,7 +63,7 @@ bool TcpServer::CloseConnection(const ConnectionSPtr& con)
     if (removeConnection(con->GetFd()))
     {
         con->SetState(kConnectionStateDisconnectByServer);
-        con->GetThreadLoop()->PushMessage(kDownCloseCon, con->GetFd());
+        con->GetThreadLoop()->EmplaceMessage(kDownCloseCon, con->GetFd());
         return true;
     }
     return false;
@@ -82,7 +81,7 @@ ConnectionSPtr TcpServer::GetConnection(int32_t fd)
 
 void TcpServer::poll()
 {
-    listener_->Poll(poll_timeout_ms_);
+    listener_->Poll();
 }
 
 void TcpServer::processMsg()
@@ -106,27 +105,34 @@ void TcpServer::processMsg()
 
 void TcpServer::handleTimer()
 {
-
+    timerManager_.Update(1);
 }
 
-void TcpServer::handleSignal()
+void TcpServer::handleListenEvent(int32_t fd, uint32_t events)
 {
-
+    if (events & (EPOLLERR | EPOLLHUP))
+    {
+        handleListenErr(fd);
+    }
+    else if (events & (EPOLLIN | EPOLLPRI))
+    {
+        handleListenRead(fd);
+    }
 }
 
-void TcpServer::HandleListenErr(int32_t fd)
+void TcpServer::handleListenErr(int32_t fd)
 {
     int32_t errcode = 0;
-    socklen_t len = (socklen_t)sizeof(errcode);
+    auto len = (socklen_t)sizeof(errcode);
     getsockopt(fd, SOL_SOCKET, SO_ERROR, &errcode, &len);
 
-    LogError("TcpServer error:%d Shutdown...", errcode);
-    Shutdown();
+    LogError("TcpServer error:%d Exit...", errcode);
+    Exit();
 }
 
-void TcpServer::HandleListenRead(int32_t fd)
+void TcpServer::handleListenRead(int32_t fd)
 {
-    // ET mode should accept all
+    // ET mode 多个accept只会触发一次read
     do
     {
         IpAddress addr;
@@ -189,7 +195,7 @@ void TcpServer::onNewConnectionAccept(const Socket& sock, const IpAddress& addr)
     auto loop = thread_pool_->GetNextLoop();
     assert(loop);
     con->SetThreadLoop(loop.get());
-    loop->PushMessage(MessageOnNewConAccept(sock.GetFd(), con));
+    loop->PushMessage(new MessageOnNewConAccept(sock.GetFd(), con));
 }
 
 void TcpServer::onNewConnectionInitFinish(int32_t fd, int32_t err)
@@ -253,22 +259,25 @@ bool TcpServer::removeConnection(int32_t fd)
     return connections_.erase(fd) > 0;
 }
 
+TcpServer* s = nullptr;
+
 TcpServerSPtr wukong::net::CreateAndServeTcpServer(const IpAddress & addr)
 {
-	auto tcp_server = std::make_shared<TcpServer>(new defaultServer()) ;
-    int32_t err = tcp_server->Init(addr);
-    if (err != 0)
+    s = new TcpServer(new defaultServer());
+
+//    wukong::net::TcpServer::SetSignal(SIGINT, [](int sig){
+//        s->Exit();
+//    });
+
+    if (!s->Init(addr, 1))
     {
         return nullptr;
     }
 
-	err = tcp_server->Serve();
-	if (err != 0)
-	{
-		return nullptr;
-	}
 
 
 
-	return tcp_server;
+	s->Loop();
+
+	return std::shared_ptr<TcpServer>(s);
 }

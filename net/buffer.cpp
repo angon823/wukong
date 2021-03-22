@@ -193,7 +193,11 @@ int32_t Buffer::ReadFd(int32_t fd, ErrCode& errCode)
         }
 
         int32_t n = ::recv(fd, buffer_ + (in & (size_ - 1)), size_ - (in - out), 0);
-        if (n == 0) break;
+        if (n == 0)
+        {
+            errCode = ErrPeerConClosed;
+            break;
+        }
         if (n < 0)
         {
             if (errno != EAGAIN)
@@ -214,6 +218,7 @@ int32_t Buffer::ReadFd(int32_t fd, ErrCode& errCode)
 // call in main thread. write
 int32_t Buffer::SendFd(int32_t fd, const char *data, size_t len)
 {
+    //FIXME 直接在调用线程里发送，可以减少一次数据拷贝，但却会对调用线程造成一次阻塞式的系统调用，是否划得来？
     int32_t send_bytes = 0;
     while (send_bytes < int32_t(len))
     {

@@ -1,38 +1,38 @@
 ﻿#include <iostream>
-
 #include "tcp_server.h"
 
-#include <thread>
+void signal_handler(int sig)
+{
+    std::cout << "sig\n";
+}
 
-int test(){
-    int b = 0;
-    int a= 0;
-    std::thread x([&](){
-        b = 42;
-        a = 1;
-    });
-    std::thread y([&](){
-        printf("%d ", a);
-        printf("%d\n",  b);
-
-    });
-    x.join();
-    y.join();
-
-    return 0;
+void ctrl_c_op( int signo )
+{
+    std::cout << "caught SIGUSR1, no : " << signo   << std::endl;
 }
 
 int main()
 {
-    for (int i = 0; i < 100000; ++i)
+    std::cout << "ready start！\n";
+
+//    signal(SIGINT, signal_handler);
+
+    struct sigaction act{};
+    act.sa_handler=ctrl_c_op;
+    sigemptyset(&act.sa_mask);
+
+    act.sa_flags=0;
+
+    auto i = sigaction( SIGINT,&act, nullptr ) ;
+    if ( i != 0 )
     {
-        test();
-//        printf("-----------------------\n");
+        std::cout << "sigaction failed ! iRet : " << i  << std::endl;
+        return -1;
     }
 
-//    std::cout << "ready start！\n";
-//    wukong::net::IpAddress addr(1234);
-//    wukong::net::CreateAndServeTcpServer(addr);
+    wukong::net::IpAddress addr(1234);
+    wukong::net::CreateAndServeTcpServer(addr);
+
 
     return 0;
 }

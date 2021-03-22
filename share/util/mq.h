@@ -9,7 +9,7 @@ namespace wukong
 {
 
 template<typename T>
-class MQ
+class ReaderWriterMQ
 {
 public:
 

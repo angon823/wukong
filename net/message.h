@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <utility>
+#include "define.h"
 
 namespace wukong{
 namespace net{
@@ -23,6 +24,9 @@ enum MessageType
     kDownEnableWrite,
 };
 
+#define NEW_SP_MSG(evt_ptr) NEW_SHARED_PTR(static_cast<Message*>(evt_ptr))
+#define MAKE_SP_MSG(class_name, ...) NEW_SP_MSG(NewObj(class_name, ##__VA_ARGS__))
+
 struct Message
 {
 public:
@@ -38,7 +42,7 @@ public:
     int32_t fd_{0};
 };
 
-struct MessageErr : public Message
+class MessageErr : public Message
 {
 public:
     MessageErr(MessageType typ, int32_t fd, int32_t errcode)

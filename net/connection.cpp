@@ -1,7 +1,7 @@
 #include "connection.h"
 #include "poller/poll_event.h"
 #include <sstream>
-#include "../base/log.h"
+#include "log/log.h"
 #include "thread_loop.h"
 using namespace wukong::net;
 
@@ -52,7 +52,7 @@ int32_t Connection::Send(const char *data, size_t len)
         }
         if (n < int32_t(len))
         {
-            loop_->PushMessage(kDownEnableWrite, GetFd());
+            loop_->EmplaceMessage(kDownEnableWrite, GetFd());
             goto high_water_mark;
         }
         return n;

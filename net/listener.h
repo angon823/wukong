@@ -5,29 +5,33 @@
 #include <memory>
 #include <vector>
 #include "poller/poll_event.h"
+#include "asio_server.h"
 
 namespace wukong {
 namespace net {
 
 class Poller;
-class INetServer;
+class AsioNetServer;
 
 class Listener
 {
 public:
-    explicit  Listener(INetServer*);
-	int32_t Listen(const IpAddress & addr);
-	int32_t Poll(int32_t timeout);
-    Socket Accept(IpAddress *addr);
+    using EventCallBack = std::function<void(int32_t, int32_t)>;
 
-    void    Close()  { sock_.Close(); }
+    explicit  Listener(EventCallBack cb, NetServerType typ);
+	int32_t Listen(const IpAddress & addr);
+    Socket Accept(IpAddress *addr);
+	int32_t Poll();
+
+    void Close();
     int32_t GetFd() const { return sock_.GetFd(); }
 
 private:
     Socket sock_{};
     std::unique_ptr<Poller> poller_{nullptr};
     std::vector<PollEvent> activeEvents_;
-    INetServer* i_net_server_;
+    NetServerType server_type_;
+    EventCallBack event_cb_;
 };
 
 }

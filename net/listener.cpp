@@ -1,20 +1,16 @@
 #include "listener.h"
-#include "poller/poll_event.h"
-#include <utility>
 #include <cstdio>
 #include "poller/epoll.h"
-#include "define.h"
-#include "i_net_server.h"
 #include "poller/poller_factory.h"
-
+#include <cassert>
 using namespace wukong::net;
 
-Listener::Listener(INetServer* handle)
-    : i_net_server_(handle)
+Listener::Listener(EventCallBack  cb, NetServerType typ)
+    : server_type_(typ)
+    , event_cb_(std::move(cb))
 {
-
+    assert(event_cb_);
 }
-
 
 int32_t Listener::Listen(const IpAddress & addr)
 {
@@ -37,7 +33,7 @@ int32_t Listener::Listen(const IpAddress & addr)
         return ret;
     }
 
-    poller_ = std::unique_ptr<Poller>(CreatePoller(i_net_server_->GetType()));
+    poller_ = std::unique_ptr<Poller>(CreatePoller(server_type_));
     if (poller_ == nullptr)
     {
         return -1;
@@ -77,10 +73,10 @@ Socket Listener::Accept(IpAddress *addr)
     return sock;
 }
 
-int32_t Listener::Poll(int32_t timeout)
+int32_t Listener::Poll()
 {
     activeEvents_.clear();
-    int32_t num = poller_->Poll(timeout, activeEvents_);
+    int32_t num = poller_->Poll(kPollTimeoutMs, activeEvents_);
     if (num <= 0)
     {
         return num;
@@ -90,17 +86,15 @@ int32_t Listener::Poll(int32_t timeout)
     {
         uint32_t events = event.Events();
         int32_t sockFd = event.Fd();
-
-        if (events & (EPOLLERR | EPOLLHUP))
-        {
-            i_net_server_->HandleListenErr(sockFd);
-        }
-        else if (events & (EPOLLIN | EPOLLPRI))
-        {
-            i_net_server_->HandleListenRead(sockFd);
-        }
+        event_cb_(sockFd, events);
     }
     return num;
+}
+
+void Listener::Close()
+{
+    sock_.Close();
+    poller_->Uninit();
 }
 
 

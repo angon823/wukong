@@ -1,14 +1,15 @@
 #include "thread_loop.h"
 #include "connection.h"
-#include "../base/log.h"
+#include "log/log.h"
 #include "poller/epoll.h"
 #include "poller/poller_factory.h"
 #include <cassert>
+#include "define.h"
 
 using namespace wukong::net;
 
 
-int32_t ThreadLoop::Start(NetServerType type, int32_t timeout)
+int32_t ThreadLoop::Start(NetServerType type)
 {
     poller_ = std::unique_ptr<Poller>(CreatePoller(type));
     if (poller_ == nullptr)
@@ -23,13 +24,14 @@ int32_t ThreadLoop::Start(NetServerType type, int32_t timeout)
 
     registerMessage();
 
-    thread_ = std::unique_ptr<std::thread>(new std::thread([this, timeout] { loop(timeout); }));
+    thread_ = std::unique_ptr<std::thread>(new std::thread([this] { loop(); }));
     return 0;
 }
 
 void ThreadLoop::Stop()
 {
     quit_ = true;
+    poller_->Uninit();
     for (const auto& con : connections_)
     {
         con.second->Close();
@@ -60,24 +62,25 @@ void ThreadLoop::UpdateWritable(int32_t fd, bool enable)
     poller_->CtlFd(fd, kPollMod, events);
 }
 
-void ThreadLoop::loop(int32_t timeout)
+void ThreadLoop::loop()
 {
-    LogInfo("loop:%p, start", this);
+    LogInfo("thread loop:%p, start", this);
     while (!quit_)
     {
-        poll(timeout);
+        poll();
         processMsg();
     }
-    LogInfo("loop:%p, exit", this);
+    LogInfo("thread loop:%p, exit", this);
 }
 
-int32_t ThreadLoop::poll(int32_t timeout)
+int32_t ThreadLoop::poll()
 {
     static std::vector<PollEvent> activeEvents;
     activeEvents.clear();
-    if (poller_->Poll(timeout, activeEvents) < 0)
+    if (poller_->Poll(kPollTimeoutMs, activeEvents) < 0)
     {
         LogFatal("loop:%p Poll failed!", this);
+        // FIXME
         return  -1;
     }
 
@@ -122,7 +125,7 @@ void ThreadLoop::handleErr(int32_t fd)
     }
     closeFd(fd);
 
-    dispatchMessage( MessageErr(kUpOnConErr, fd, errcode));
+    dispatchMessageToServer(new MessageErr(kUpOnConErr, fd, errcode));
 }
 
 void ThreadLoop::handleRead(int32_t fd)
@@ -133,13 +136,13 @@ void ThreadLoop::handleRead(int32_t fd)
         auto ret = con->RecvMsg();
         if (ret == Success)
         {
-            dispatchMessage(kUpOnConMessage, fd);
+            emplaceMessageToServer(kUpOnConMessage, fd);
         }
         else if (ret == ErrPeerConClosed)
         {
             con->SetState(kConnectionStateDisconnectByPeer);
             closeFd(fd);
-            dispatchMessage(kUpOnConDisconnect, fd);
+            emplaceMessageToServer(kUpOnConDisconnect, fd);
         }
         else
         {
@@ -222,7 +225,7 @@ void ThreadLoop::onMessageNewCon(const MessageSPtr &msg)
     }
 
     end:
-    dispatchMessage(MessageNewConInitFinish(msg->fd_, errcode));
+    dispatchMessageToServer(NewObj<MessageNewConInitFinish>(msg->fd_, errcode));
 }
 
 void ThreadLoop::closeFd(int32_t fd)

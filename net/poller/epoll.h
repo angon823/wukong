@@ -13,13 +13,15 @@ namespace net{
 class Epoll : public Poller
 {
 public:
-    Epoll();
-    ~Epoll();
+    Epoll() = default;
+    ~Epoll() override;
 
     int32_t Init() override;
+    void Uninit() override;
     int32_t CtlFd(int32_t fd, int32_t op, uint32_t events) override;
     int32_t Poll(int32_t timeout, std::vector<PollEvent>& activeEvents) override;
 
+private:
     int32_t epoll_init();
     int32_t epoll_wait(int32_t timeout = -1);
     int32_t epoll_add(int32_t, uint32_t);

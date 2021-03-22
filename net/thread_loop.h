@@ -7,41 +7,49 @@
 #include <vector>
 #include <atomic>
 #include <thread>
-#include "mq.h"
+#include "util/mq.h"
 #include "message_procceor.h"
-#include "i_net_server.h"
+#include "asio_server.h"
 
 namespace wukong
 {
 namespace net
 {
 class PollEvent;
-class INetServer;
+class AsioNetServer;
 class ThreadLoop
 {
 public:
     ThreadLoop() = default;
-    int32_t Start(NetServerType type, int32_t timeout);
+    int32_t Start(NetServerType type);
     void Stop();
 
     template<typename ...Args>
-    inline void PushMessage(Args&& ... args)
+    inline void EmplaceMessage(Args&& ... args)
     {
         in_msg_mq_.PushBack(std::make_shared<Message>(std::forward<Args>(args)...));
+    }
+    inline void PushMessage(Message* ptr)
+    {
+        in_msg_mq_.PushBack(std::shared_ptr<Message>(ptr));
     }
     void PopMessage(std::vector<MessageSPtr>& out, uint32_t max_count);
 
     void UpdateWritable(int32_t fd, bool enable);
 
 private:
-    void loop(int32_t timeout);
+    void loop();
     void processMsg();
-    int32_t poll(int32_t timeout);
+    int32_t poll();
 
     template<typename ...Args>
-    inline void dispatchMessage(Args&& ... args)
+    inline void emplaceMessageToServer(Args&& ... args)
     {
         out_msg_mq_.PushBack(std::make_shared<Message>(std::forward<Args>(args)...));
+    }
+    inline void dispatchMessageToServer(Message* msg)
+    {
+        out_msg_mq_.PushBack(std::shared_ptr<Message>(msg));
     }
 
     void handleEvent(const PollEvent& event);
@@ -63,8 +71,8 @@ private:
     std::unique_ptr<Poller> poller_{ nullptr };
     std::unordered_map<int32_t, ConnectionSPtr> connections_;
 
-    MQ<MessageSPtr> in_msg_mq_; // net server -> thread loop
-    MQ<MessageSPtr> out_msg_mq_; // thread loop -> net server
+    ReaderWriterMQ<MessageSPtr> in_msg_mq_; // net server -> thread loop
+    ReaderWriterMQ<MessageSPtr> out_msg_mq_; // thread loop -> net server
     MessageProcessor msg_processor_;
 };
 

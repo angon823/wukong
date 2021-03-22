@@ -9,8 +9,9 @@
 #include "define.h"
 #include "listener.h"
 #include "poller/poller.h"
-#include "i_net_server.h"
+#include "asio_server.h"
 #include "message_procceor.h"
+#include "util/noncopyable.h"
 
 namespace wukong {
 class ILogicServer;
@@ -18,24 +19,24 @@ class ILogicServer;
 namespace net {
 
 class ThreadPool;
-class TcpServer : public INetServer
+class TcpServer : public AsioNetServer, public noncopyable
 {
 public:
 	explicit TcpServer(ILogicServer * logic_server);
     NetServerType GetType() const override {return NetServerType::TCP;}
 
-	int32_t Init(const IpAddress& addr, int32_t thread_num = 1);
-	int32_t Serve();
-	void Shutdown();
-	void SetTimeout(int32_t timeout) { poll_timeout_ms_ = timeout; }
+	bool Init(const IpAddress& addr, int32_t thread_num) override;
+    void Loop() override;
+	void Exit() override;
     bool CloseConnection(const ConnectionSPtr& con);
-	ConnectionSPtr GetConnection(int32_t fd);
-
-protected:
-    void HandleListenErr(int32_t fd) override;
-    void HandleListenRead(int32_t fd) override;
 
 private:
+	ConnectionSPtr GetConnection(int32_t fd);
+
+    void handleListenEvent(int32_t fd, uint32_t events);
+    void handleListenErr(int32_t fd);
+    void handleListenRead(int32_t fd);
+
     void onNewConnectionAccept(const Socket& sock, const IpAddress& addr);
     void onNewConnectionInitFinish(int32_t fd, int32_t err);
     void onConnectionDisconnect(int32_t fd);
@@ -49,14 +50,12 @@ private:
     void poll();
     void processMsg();
     void handleTimer();
-    void handleSignal();
 private:
     bool quit_{false};
 	std::unique_ptr<Listener> listener_{nullptr};
-    std::unordered_map<int32_t, ConnectionSPtr> connections_;
     std::unique_ptr<ThreadPool> thread_pool_;
+    std::unordered_map<int32_t, ConnectionSPtr> connections_;
     MessageProcessor msg_processor_;
-    int32_t poll_timeout_ms_{5};
 };
 
 

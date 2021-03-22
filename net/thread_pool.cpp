@@ -1,17 +1,17 @@
 #include "thread_pool.h"
-#include "i_net_server.h"
+#include "asio_server.h"
 #include <memory>
 #include <thread>
 #include "thread_loop.h"
 
 using namespace wukong::net;
 
-int32_t ThreadPool::Create(INetServer* i_server, int32_t thread_num, int32_t timeout)
+int32_t ThreadPool::Create(AsioNetServer* i_server, int32_t thread_num)
 {
     for (int32_t i = 0; i < thread_num; ++i )
     {
         auto thread_loop = std::make_shared<ThreadLoop>();
-        if (thread_loop->Start(i_server->GetType(), timeout) < 0)
+        if (thread_loop->Start(i_server->GetType()) < 0)
         {
             return -1;
         }
