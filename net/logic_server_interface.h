@@ -17,7 +17,7 @@ public:
     // virtual void Tick(int32_t delta_time) {}
 };
 
-class defaultServer : public ILogicServer
+class DefaultServer : public ILogicServer
 {
 public:
     void ConnectionCallBack(const net::ConnectionSPtr & con) override

@@ -11,7 +11,6 @@
 #include "poller/poller.h"
 #include "asio_server.h"
 #include "message_procceor.h"
-#include "util/noncopyable.h"
 
 namespace wukong {
 class ILogicServer;
@@ -19,15 +18,15 @@ class ILogicServer;
 namespace net {
 
 class ThreadPool;
-class TcpServer : public AsioNetServer, public noncopyable
+class TcpServer : public AsioNetServer
 {
 public:
 	explicit TcpServer(ILogicServer * logic_server);
     NetServerType GetType() const override {return NetServerType::TCP;}
 
 	bool Init(const IpAddress& addr, int32_t thread_num) override;
+	void Uninit() override;
     void Loop() override;
-	void Exit() override;
     bool CloseConnection(const ConnectionSPtr& con);
 
 private:
@@ -57,9 +56,6 @@ private:
     std::unordered_map<int32_t, ConnectionSPtr> connections_;
     MessageProcessor msg_processor_;
 };
-
-
-TcpServerSPtr CreateAndServeTcpServer(const IpAddress& addr);
 
 }
 }

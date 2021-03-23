@@ -13,7 +13,7 @@ using namespace wukong::net;
 TcpServer::TcpServer(wukong::ILogicServer *logic_server)
     : AsioNetServer(logic_server)
 {
-    assert(server_);
+    assert(i_logic_server);
 }
 
 bool TcpServer::Init(const IpAddress &addr, int32_t thread_num)
@@ -49,11 +49,17 @@ void TcpServer::Loop()
     }
 }
 
-void TcpServer::Exit()
+void TcpServer::Uninit()
 {
     quit_ = true;
-	listener_->Close();
-    thread_pool_->Stop();
+    if (listener_)
+    {
+	    listener_->Close();
+    }
+    if (thread_pool_)
+    {
+        thread_pool_->Stop();
+    }
     connections_.clear();
     LogInfo("tcpserver exit!");
 }
@@ -105,7 +111,7 @@ void TcpServer::processMsg()
 
 void TcpServer::handleTimer()
 {
-    timerManager_.Update(1);
+    timer_manager_.Update(1);
 }
 
 void TcpServer::handleListenEvent(int32_t fd, uint32_t events)
@@ -126,8 +132,8 @@ void TcpServer::handleListenErr(int32_t fd)
     auto len = (socklen_t)sizeof(errcode);
     getsockopt(fd, SOL_SOCKET, SO_ERROR, &errcode, &len);
 
-    LogError("TcpServer error:%d Exit...", errcode);
-    Exit();
+    LogError("TcpServer error:%d Uninit...", errcode);
+    Uninit();
 }
 
 void TcpServer::handleListenRead(int32_t fd)
@@ -172,7 +178,7 @@ void TcpServer::registerMessage()
         auto con = GetConnection(msg->fd_);
         if (con)
         {
-            server_->OnMessageRecv(con);
+            i_logic_server->OnMessageRecv(con);
         }
         assert(con); // todo should be happen
     });
@@ -205,7 +211,7 @@ void TcpServer::onNewConnectionInitFinish(int32_t fd, int32_t err)
     if (err == 0)
     {
         con->SetState(kConnectionStateConnect);
-        server_->ConnectionCallBack(con);
+        i_logic_server->ConnectionCallBack(con);
     }
     else
     {
@@ -220,7 +226,7 @@ void TcpServer::onConnectionDisconnect(int32_t fd)
     auto con = GetConnection(fd);
     if (con)
     {
-        server_->ConnectionCallBack(con);
+        i_logic_server->ConnectionCallBack(con);
         removeConnection(fd);
     }
     else
@@ -235,7 +241,7 @@ void TcpServer::onConnectionBad(int32_t fd, int32_t err_code)
     if (con)
     {
         LogError("con:%s bad. errcode:%d", con->ToString().c_str(), err_code);
-        server_->ConnectionCallBack(con);
+        i_logic_server->ConnectionCallBack(con);
         removeConnection(fd);
     }
     else
@@ -257,27 +263,4 @@ bool TcpServer::addConnection(const ConnectionSPtr& con)
 bool TcpServer::removeConnection(int32_t fd)
 {
     return connections_.erase(fd) > 0;
-}
-
-TcpServer* s = nullptr;
-
-TcpServerSPtr wukong::net::CreateAndServeTcpServer(const IpAddress & addr)
-{
-    s = new TcpServer(new defaultServer());
-
-//    wukong::net::TcpServer::SetSignal(SIGINT, [](int sig){
-//        s->Exit();
-//    });
-
-    if (!s->Init(addr, 1))
-    {
-        return nullptr;
-    }
-
-
-
-
-	s->Loop();
-
-	return std::shared_ptr<TcpServer>(s);
 }

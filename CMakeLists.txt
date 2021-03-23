@@ -18,7 +18,6 @@ message(STATUS "Src path: ${WUKONG_SOURCE_DIR}")
 
 include_directories(${WUKONG_SOURCE_DIR}/util)
 include_directories(${WUKONG_SOURCE_DIR}/third)
-include_directories(${WUKONG_SOURCE_DIR}/third/lockfree)
 
 
 

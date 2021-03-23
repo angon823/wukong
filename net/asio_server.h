@@ -4,6 +4,7 @@
 #include "define.h"
 #include <csignal>
 #include "timer/time_manager.h"
+#include "util/noncopyable.h"
 
 namespace wukong {
 class ILogicServer;
@@ -20,25 +21,24 @@ enum class NetServerType
     KCP,
 };
 
-class AsioNetServer
+class AsioNetServer : public noncopyable
 {
 public:
 
     explicit AsioNetServer(ILogicServer* server)
-        : server_(server)
+        : i_logic_server(server)
     {
-        timerManager_.Init();
+        timer_manager_.Init();
     }
     virtual ~AsioNetServer() = default;
 
     virtual NetServerType GetType() const = 0;
     // 初始化
     virtual bool Init(const IpAddress& addr, int32_t thread_num) = 0;
+    // 关闭服务
+    virtual void Uninit() = 0;
     // 开启服务, 将进入循环
     virtual void Loop() = 0;
-    // 关闭服务
-    virtual void Exit() = 0;
-
 
     // 注册信号 FIXME 有点简陋
     static void SetSignal(int sig, void signal_handler(int sig))
@@ -46,15 +46,17 @@ public:
         signal(sig, signal_handler);
     }
 
-    TimerManager& GetTimerManager() {return timerManager_; }
+    TimerManager& GetTimerManager() {return timer_manager_; }
 
 protected:
-    ILogicServer* server_{nullptr};
-    TimerManager timerManager_;
+    ILogicServer* i_logic_server{nullptr};
+    TimerManager timer_manager_;
 };
 
 
-//class server
+
+
+
 }
 }
 #endif //WUKONG_ASIO_SERVER_H

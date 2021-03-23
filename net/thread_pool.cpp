@@ -24,7 +24,10 @@ int32_t ThreadPool::Stop()
 {
     for (const auto& thread : threads_)
     {
-        thread->Stop();
+        if (thread)
+        {
+            thread->Stop();
+        }
     }
     threads_.clear();
     return 0;

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(net)
 
-set(CMAKE_CXX_STANDARD 14)
+#set(CMAKE_CXX_STANDARD 14)
 
 include_directories(${WUKONG_SOURCE_DIR}/share)
 include_directories(${WUKONG_SOURCE_DIR}/third)
@@ -20,10 +20,12 @@ set(net_HEAD
 
 file(GLOB_RECURSE net_SRC *.cpp)
 
+message(STATUS "net : ${WUKONG_SOURCE_DIR}/share/timer/")
+
 list(APPEND net_SRC
         ${WUKONG_SOURCE_DIR}/share/timer/time_manager.cpp
         ${WUKONG_SOURCE_DIR}/share/timer/time_manager.h
     )
 
 
-add_executable(net ${net_SRC} ../share/util/time.h ../share/util/noncopyable.h)
+add_executable(net ${net_SRC} asio_server_factory.cpp asio_server_factory.h)
