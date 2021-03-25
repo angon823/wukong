@@ -54,6 +54,8 @@ public:
 
     CharSliceSPtr GetAll();
 
+    uint32_t PeakUint32();
+
     uint32_t GetUInt32();
 
     CharSliceSPtr Get(uint32_t len);
@@ -73,7 +75,7 @@ public:
     bool Empty() const { return Size() == 0;}
 
 private:
-    char *buffer_{nullptr};              // the buffer holding the data
+    char* buffer_{nullptr};              // the buffer holding the data
     const uint32_t size_;                // the size of the allocated buffer
     moodycamel::weak_atomic<uint32_t> in_{0};     // data is added at offset (in % size)
     moodycamel::weak_atomic<uint32_t> out_{0};    // data is extracted from off. (out % size)

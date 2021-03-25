@@ -17,7 +17,6 @@ public:
     ~Epoll() override;
 
     int32_t Init() override;
-    void Uninit() override;
     int32_t CtlFd(int32_t fd, int32_t op, uint32_t events) override;
     int32_t Poll(int32_t timeout, std::vector<PollEvent>& activeEvents) override;
 

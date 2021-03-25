@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "poll_event.h"
+#include "util/noncopyable.h"
 
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -40,11 +41,11 @@ enum
 #endif
 };
 
-class Poller{
+class Poller : public noncopyable
+{
 public:
     virtual ~Poller() = default;
     virtual int32_t Init() = 0;
-    virtual void Uninit() = 0;
     virtual int32_t CtlFd(int32_t fd, int32_t op, uint32_t events) = 0;
     virtual int32_t Poll(int32_t timeout, std::vector<PollEvent>& activeEvents) = 0;
 

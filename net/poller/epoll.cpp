@@ -17,11 +17,6 @@ int32_t Epoll::Init()
     return epoll_init();
 }
 
-void Epoll::Uninit()
-{
-    epoll_destroy();
-}
-
 int32_t Epoll::CtlFd(int32_t fd, int32_t op, uint32_t events)
 {
     if (op == kPollAdd)
@@ -42,6 +37,14 @@ int32_t Epoll::CtlFd(int32_t fd, int32_t op, uint32_t events)
 int32_t Epoll::Poll(int32_t timeout, std::vector<PollEvent>& activeEvents)
 {
     int32_t eventNum = epoll_wait(timeout);
+    if (eventNum < 0)
+    {
+        if (errno == EINTR)
+        {
+            return 0;
+        }
+    }
+
     for (int i = 0; i < eventNum; ++i)
     {
         auto *event = get_event(i);

@@ -94,10 +94,6 @@ int32_t Listener::Poll()
 void Listener::Close()
 {
     sock_.Close();
-    if (poller_)
-    {
-        poller_->Uninit();
-    }
 }
 
 

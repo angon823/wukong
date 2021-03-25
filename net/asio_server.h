@@ -24,33 +24,35 @@ enum class NetServerType
 class AsioNetServer : public noncopyable
 {
 public:
+    explicit AsioNetServer(ILogicServer* server);
 
-    explicit AsioNetServer(ILogicServer* server)
-        : i_logic_server(server)
-    {
-        timer_manager_.Init();
-    }
     virtual ~AsioNetServer() = default;
 
     virtual NetServerType GetType() const = 0;
     // 初始化
     virtual bool Init(const IpAddress& addr, int32_t thread_num) = 0;
-    // 关闭服务
-    virtual void Uninit() = 0;
     // 开启服务, 将进入循环
     virtual void Loop() = 0;
+    // 退出
+    virtual void Exit() = 0;
 
-    // 注册信号 FIXME 有点简陋
-    static void SetSignal(int sig, void signal_handler(int sig))
-    {
-        signal(sig, signal_handler);
-    }
+    // 监听信号
+    void SetSignal(int sig);
+    // 移除信号
+    void DelSignal(int sig);
+    // 信号触发
+    void OnSignal(int sig);
 
     TimerManager& GetTimerManager() {return timer_manager_; }
 
 protected:
-    ILogicServer* i_logic_server{nullptr};
+    ILogicServer* logic_server_{nullptr};
     TimerManager timer_manager_;
+    sigset_t concern_signal_mask_{};
+
+
+private:
+
 };
 
 

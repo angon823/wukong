@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <map>
 #include <memory>
-#include <mutex>
+#include <atomic>
 #include "socket.h"
 #include "define.h"
 #include "listener.h"
@@ -22,11 +22,12 @@ class TcpServer : public AsioNetServer
 {
 public:
 	explicit TcpServer(ILogicServer * logic_server);
+    ~TcpServer() override;
     NetServerType GetType() const override {return NetServerType::TCP;}
 
 	bool Init(const IpAddress& addr, int32_t thread_num) override;
-	void Uninit() override;
     void Loop() override;
+	void Exit() override;
     bool CloseConnection(const ConnectionSPtr& con);
 
 private:
@@ -50,7 +51,7 @@ private:
     void processMsg();
     void handleTimer();
 private:
-    bool quit_{false};
+    std::atomic<bool> quit_{false};
 	std::unique_ptr<Listener> listener_{nullptr};
     std::unique_ptr<ThreadPool> thread_pool_;
     std::unordered_map<int32_t, ConnectionSPtr> connections_;

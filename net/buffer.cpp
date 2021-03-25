@@ -171,6 +171,27 @@ uint32_t Buffer::GetWithFunc(const std::function<uint32_t(char*, uint32_t)>& fun
     return 0;
 }
 
+uint32_t Buffer::PeakUint32()
+{
+    auto in = in_.load();
+    auto out = out_.load();
+    std::atomic_thread_fence(std::memory_order_acquire);
+    uint32_t len = sizeof (uint32_t);
+    if (len > in - out)
+        return 0;
+    char out_buffer[4];
+    uint32_t l = std::min(len, size_ - (out & (size_ - 1)));
+    memcpy(out_buffer, buffer_ + (out & (size_ - 1)), l);
+    if (l < len)
+    {
+        memcpy(out_buffer + l, buffer_, len - l);
+    }
+
+    uint32_t ret = 0;
+    memcpy(reinterpret_cast<void *>(&ret), out_buffer, len);
+    return ntohl(ret);
+}
+
 uint32_t Buffer::GetUInt32()
 {
     char out_buffer[4];
@@ -311,6 +332,7 @@ uint32_t Buffer::Size() const
     std::atomic_thread_fence(std::memory_order_acquire);
     return in_.load() - out_.load();
 }
+
 
 
 

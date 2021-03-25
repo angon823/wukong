@@ -13,8 +13,24 @@ using namespace wukong::net;
 TcpServer::TcpServer(wukong::ILogicServer *logic_server)
     : AsioNetServer(logic_server)
 {
-    assert(i_logic_server);
+    assert(logic_server_);
 }
+
+
+TcpServer::~TcpServer()
+{
+    if (listener_)
+    {
+        listener_->Close();
+    }
+    if (thread_pool_)
+    {
+        thread_pool_->Stop();
+    }
+    connections_.clear();
+    LogInfo("tcpserver exit!");
+}
+
 
 bool TcpServer::Init(const IpAddress &addr, int32_t thread_num)
 {
@@ -49,19 +65,10 @@ void TcpServer::Loop()
     }
 }
 
-void TcpServer::Uninit()
+void TcpServer::Exit()
 {
     quit_ = true;
-    if (listener_)
-    {
-	    listener_->Close();
-    }
-    if (thread_pool_)
-    {
-        thread_pool_->Stop();
-    }
-    connections_.clear();
-    LogInfo("tcpserver exit!");
+    LogInfo("tcpserver ready exit!");
 }
 
 bool TcpServer::CloseConnection(const ConnectionSPtr& con)
@@ -132,8 +139,8 @@ void TcpServer::handleListenErr(int32_t fd)
     auto len = (socklen_t)sizeof(errcode);
     getsockopt(fd, SOL_SOCKET, SO_ERROR, &errcode, &len);
 
-    LogError("TcpServer error:%d Uninit...", errcode);
-    Uninit();
+    LogError("TcpServer error:%d Exit...", errcode);
+    Exit();
 }
 
 void TcpServer::handleListenRead(int32_t fd)
@@ -178,7 +185,7 @@ void TcpServer::registerMessage()
         auto con = GetConnection(msg->fd_);
         if (con)
         {
-            i_logic_server->OnMessageRecv(con);
+            logic_server_->OnMessageRecv(con);
         }
         assert(con); // todo should be happen
     });
@@ -211,7 +218,7 @@ void TcpServer::onNewConnectionInitFinish(int32_t fd, int32_t err)
     if (err == 0)
     {
         con->SetState(kConnectionStateConnect);
-        i_logic_server->ConnectionCallBack(con);
+        logic_server_->ConnectionCallBack(con);
     }
     else
     {
@@ -226,7 +233,7 @@ void TcpServer::onConnectionDisconnect(int32_t fd)
     auto con = GetConnection(fd);
     if (con)
     {
-        i_logic_server->ConnectionCallBack(con);
+        logic_server_->ConnectionCallBack(con);
         removeConnection(fd);
     }
     else
@@ -241,7 +248,7 @@ void TcpServer::onConnectionBad(int32_t fd, int32_t err_code)
     if (con)
     {
         LogError("con:%s bad. errcode:%d", con->ToString().c_str(), err_code);
-        i_logic_server->ConnectionCallBack(con);
+        logic_server_->ConnectionCallBack(con);
         removeConnection(fd);
     }
     else

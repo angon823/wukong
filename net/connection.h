@@ -48,7 +48,7 @@ public:
 
 	std::string ToString() const;
 
-	Buffer& RecvBuffer() { return recv_buffer_; }
+	Buffer* RecvBuffer() { return &recv_buffer_; }
 
 	void SetHighWaterMarkCallBack(const HighWaterMarkCallBack& cb, uint32_t mark) { high_water_mark_callback_ = cb; high_water_mark_ = mark;}
 

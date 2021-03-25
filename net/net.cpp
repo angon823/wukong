@@ -2,49 +2,29 @@
 #include "tcp_server.h"
 #include "asio_server_factory.h"
 #include "logic_server_interface.h"
+#include "util/utility.h"
 
 using namespace wukong::net;
 
-AsioNetServer* tcpserver = nullptr;
+//AsioNetServer* tcpserver = nullptr;
 
-void signal_handler(int sig)
-{
-    std::cout << "sig\n";
-}
+auto server =  new wukong::DefaultServer();
 
 void ctrl_c_op( int signo )
 {
-    if (tcpserver)
-    {
-        tcpserver->Uninit();
-    }
-    std::cout << "caught SIGUSR1, no : " << signo   << std::endl;
+    std::cout << "caught signo : " << signo   << std::endl;
+    server->OnSignal(signo);
 }
 
 int main()
 {
     std::cout << "ready start！\n";
 
-    struct sigaction act{};
-    act.sa_handler=ctrl_c_op;
-    sigemptyset(&act.sa_mask);
+//    wukong::Signal(SIGINT, ctrl_c_op);
 
-    act.sa_flags=0;
-
-
-    auto i = sigaction(SIGINT, &act, nullptr ) ;
-    if ( i != 0 )
-    {
-        std::cout << "sigaction failed ! iRet : " << i  << std::endl;
-        return -1;
-    }
-
-    IpAddress addr(1234);
-    tcpserver = AsioServerFactory::CreateAsioNetServer(new wukong::DefaultServer(), addr);
-    if (tcpserver)
-    {
-        tcpserver->Loop();
-    }
+    server = new wukong::DefaultServer();
+    server->Create(IpAddress(1234));
+    server->MainLoop();
 
     return 0;
 }

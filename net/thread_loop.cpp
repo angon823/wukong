@@ -31,7 +31,6 @@ int32_t ThreadLoop::Start(NetServerType type)
 void ThreadLoop::Stop()
 {
     quit_ = true;
-    poller_->Uninit();
     for (const auto& con : connections_)
     {
         con.second->Close();

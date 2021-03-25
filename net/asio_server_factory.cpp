@@ -11,7 +11,7 @@ AsioNetServer *AsioServerFactory::CreateAsioNetServer(ILogicServer *i_logic_serv
             server = new TcpServer(i_logic_server);
             if (!server->Init(address, 1))
             {
-                server->Uninit();
+                server->Exit();
                 delete server;
                 server = nullptr;
                 break;
